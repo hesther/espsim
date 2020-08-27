@@ -7,7 +7,7 @@ with open('scripts/prbmol1.mol') as f:
 print("#"*30)
 print("Loading molecule A:")
 print(read_data)
-mol11=Chem.MolFromMolBlock(read_data,sanitize=False)
+mol1=Chem.MolFromMolBlock(read_data,sanitize=False)
 Chem.SanitizeMol(mol1,sanitizeOps=Chem.SanitizeFlags.SANITIZE_ALL^Chem.SanitizeFlags.SANITIZE_ADJUSTHS)
 with open('scripts/refmol1.mol') as f:
     read_data = f.read()
