@@ -4,30 +4,70 @@ from rdkit.Chem.AllChem import AlignMol, EmbedMolecule, EmbedMultipleConfs
 from rdkit.Chem.rdForceFieldHelpers import UFFGetMoleculeForceField
 import numpy as np
 import scipy.spatial
+from .helpers import Renormalize, SimilarityMetric, psi4Charges
 
-
-def GetMolProps(mol,cid,charge):
+def GetMolProps(mol,
+                cid,
+                charge,
+                partialCharges = "gasteiger",
+                basisPsi4 = '3-21G',
+                methodPsi4 = 'scf',
+                gridPsi4 = 1,
+):
     """
     Extracts the coordinates, van der Waals radii and charges from a given conformer cid of a molecule mol.
     :param mol: RDKit mol object.
     :param cid: Index of the conformer for 3D coordinates.
-    :param charge: List or array of charge. If None, RDKit Gasteiger Charges are read, or if not available yet, calculated.
+    :param charge: List or array of charge. If empty list, charges are calculated based on the parameter partialCharges.
+    :param partialCharges: (optional) Partial charge distribution.
+    :param basisPsi4: (optional) Basis set for Psi4 calculation.
+    :param methodPsi4: (optional) Method for Psi4 calculation.
+    :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
     :return: 2D array of coordinates, 1D array of charges.
     """
     
     coor=mol.GetConformer(cid).GetPositions()
-    if charge == None:
-        try:
-            charge=np.array([np.float(a.GetProp('_GasteigerCharge')) for a in mol.GetAtoms()])
-        except KeyError:
-            AllChem.ComputeGasteigerCharges(mol)
-            charge=np.array([np.float(a.GetProp('_GasteigerCharge')) for a in mol.GetAtoms()])
+    if len(charge) == 0:
+        if partialCharges == "gasteiger":
+            try:
+                charge=np.array([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])
+            except KeyError:
+                AllChem.ComputeGasteigerCharges(mol)
+                charge=np.array([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])
+        elif partialCharges == "mmff":
+            mp = AllChem.MMFFGetMoleculeProperties(mol)
+            charge=np.array([mp.GetMMFFPartialCharge(i) for i in range(mol.GetNumAtoms())])
+        elif partialCharges == "resp":
+            xyz=Chem.rdmolfiles.MolToXYZBlock(mol,confId=cid)
+            charge=psi4Charges(xyz,basisPsi4,methodPsi4,gridPsi4)
+        else:
+            raise ValueError("Unknown partial charge distribution.")
+        if charge.shape[0] != coor.shape[0]:
+            raise ValueError("Error in partial charge calculation.")
     else:
-        charge=np.array(charge,dtype=np.float).flatten()
+        charge=np.array(charge,dtype=float).flatten()
+        if charge.shape[0] != coor.shape[0]:
+            raise ValueError("Dimensions of the supplied charges does not match dimensions of coordinates of molecule")
 
     return coor,charge
     
-def GetEspSim(prbMol,refMol,prbCid=-1,refCid=-1,prbCharge=None,refCharge=None):
+def GetEspSim(prbMol,
+              refMol,
+              prbCid = -1,
+              refCid = -1,
+              prbCharge = [],
+              refCharge = [],
+              metric = "carbo",
+              integrate = "gauss",
+              partialCharges = "gasteiger",
+              renormalize = False,
+              customrange = None,
+              marginMC = 10,
+              nMC = 1,
+              basisPsi4 = '3-21G',
+              methodPsi4 = 'scf',
+              gridPsi4 = 1,
+):
     """
     Calculates the similarity of the electrostatic potential around two previously aligned molecules.
     :param prbMol: RDKit mol object of the probe molecule.
@@ -36,24 +76,48 @@ def GetEspSim(prbMol,refMol,prbCid=-1,refCid=-1,prbCharge=None,refCharge=None):
     :param refCid: Index of the conformer of the reference molecule to be used for 3D coordinates.
     :param prbCharge: (optional) List or array of partial charges of the probe molecule. If not given, RDKit Gasteiger Charges are used as default.
     :param refCharge: (optional) List or array of partial charges of the reference molecule. If not given, RDKit Gasteiger Charges are used as default.
+    :param metric:  (optional) Similarity metric.
+    :param integrate: (optional) Integration method.
+    :param partialCharges: (optional) Partial charge distribution.
+    :param renormalize: (optional) Boolean whether to renormalize the similarity score to [0:1].
+    :param customrange: (optional) Custom range to renormalize to, supply as tuple or list of two values (lower bound, upper bound).
+    :param marginMC: (optional) Margin up to which to integrate (added to coordinates plus/minus their vdW radii) if MC integration is utilized.
+    :param nMC: (optional) Number of grid points per 1 Angstrom**3 volume of integration vox if MC integration is utilized.
+    :param basisPsi4: (optional) Basis set for Psi4 calculation.
+    :param methodPsi4: (optional) Method for Psi4 calculation.
+    :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
     :return: Similarity score.
     """
 
     #Set up probe molecule properties:
-    prbCoor,prbCharge=GetMolProps(prbMol,prbCid,prbCharge)
-    refCoor,refCharge=GetMolProps(refMol,refCid,refCharge)
+    prbCoor,prbCharge=GetMolProps(prbMol,prbCid,prbCharge,partialCharges,basisPsi4,methodPsi4,gridPsi4)
+    refCoor,refCharge=GetMolProps(refMol,refCid,refCharge,partialCharges,basisPsi4,methodPsi4,gridPsi4)
 
-    similarity=GetIntegralsViaGaussians(prbCoor,refCoor,prbCharge,refCharge)
+    if integrate=='gauss':
+        similarity=GetIntegralsViaGaussians(prbCoor,refCoor,prbCharge,refCharge,metric)
+    elif integrate=='mc':
+        prbVdw = np.array([Chem.GetPeriodicTable().GetRvdw(a.GetAtomicNum()) for a in prbMol.GetAtoms()]).reshape(-1,1)
+        refVdw = np.array([Chem.GetPeriodicTable().GetRvdw(a.GetAtomicNum()) for a in refMol.GetAtoms()]).reshape(-1,1)
+        similarity=GetIntegralsViaMC(prbCoor,refCoor,prbCharge,refCharge,prbVdw,refVdw,metric,marginMC,nMC)
+
+    if renormalize:
+        similarity=Renormalize(similarity,metric,customrange)   
 
     return similarity
 
-def GetIntegralsViaGaussians(prbCoor,refCoor,prbCharge,refCharge):
+def GetIntegralsViaGaussians(prbCoor,
+                             refCoor,
+                             prbCharge,
+                             refCharge,
+                             metric,
+):
     """
     Calculates the integral of the overlap between the point charges prbCharge and refCharge at coordinates prbCoor and refCoor via fitting to Gaussian functions and analytic integration.
     :param prbCoor: 2D array of coordinates of the probe molecule. 
     :param refCoor: 2D array of coordinates of the reference molecule. 
     :param prbCharge: 1D array of partial charges of the probe molecule. 
     :param refCharge: 1D array of partial charges of the reference molecule.
+    :param metric: Metric of similarity score.
     :return: Similarity of the overlap integrals.
     """
 
@@ -65,10 +129,13 @@ def GetIntegralsViaGaussians(prbCoor,refCoor,prbCharge,refCharge):
     intPrbRef=GaussInt(distPrbRef,prbCharge,refCharge)
     intRefRef=GaussInt(distRefRef,refCharge,refCharge)
 
-    similarity=intPrbRef/np.sqrt(intPrbPrb*intRefRef)
+    similarity=SimilarityMetric(intPrbPrb,intRefRef,intPrbRef,metric)
     return similarity
   
-def GaussInt(dist,charge1,charge2):
+def GaussInt(dist,
+             charge1,
+             charge2,
+):
     """Calculates the analytic Gaussian integrals.
     :param dist: Distance matrix.
     :param charge1: 1D array of partial charges of first molecule.
@@ -77,8 +144,12 @@ def GaussInt(dist,charge1,charge2):
     """
 
     #These are precomputed coefficients:
-    a=np.array([[ 15.90600036,   3.9534831 ,  17.61453176],[  3.9534831 ,   5.21580206,   1.91045387],[ 17.61453176,   1.91045387, 238.75820253]])
-    b=np.array([[-0.02495   , -0.04539319, -0.00247124],[-0.04539319, -0.2513    , -0.00258662],[-0.00247124, -0.00258662, -0.0013    ]])
+    a=np.array([[ 15.90600036,   3.9534831 ,  17.61453176],
+                [  3.9534831 ,   5.21580206,   1.91045387],
+                [ 17.61453176,   1.91045387, 238.75820253]])
+    b=np.array([[-0.02495   , -0.04539319, -0.00247124],
+                [-0.04539319, -0.2513    , -0.00258662],
+                [-0.00247124, -0.00258662, -0.0013    ]])
     
     intOverall=0
     for idx1 in range(charge1.shape[0]):
@@ -92,8 +163,79 @@ def GaussInt(dist,charge1,charge2):
     return intOverall
 
 
-def ConstrainedEmbedMultipleConfs(mol, core, numConfs=10, useTethers=True, coreConfId=-1, randomseed=2342,
-                     getForceField=UFFGetMoleculeForceField, **kwargs):
+def GetIntegralsViaMC(prbCoor,
+                      refCoor,
+                      prbCharge,
+                      refCharge,
+                      prbVdw,
+                      refVdw,
+                      metric,
+                      marginMC = 10,
+                      nMC = 1,
+):
+    """
+    Calculates the integral of the overlap between the point charges prbCharge and refCharge at coordinates prbCoor and refCoor via Monte Carlo numeric integration (up to 10 Angstrom away from .
+    :param prbCoor: 2D array of coordinates of the probe molecule. 
+    :param refCoor: 2D array of coordinates of the reference molecule. 
+    :param prbCharge: 1D array of partial charges of the probe molecule. 
+    :param refCharge: 1D array of partial charges of the reference molecule.
+    :param metric: Metric of similarity score.
+    :param marginMC: (optional) Margin up to which to integrate (added to coordinates plus/minus their vdW radii).
+    :param nMC: (optional) Number of grid points per 1 Angstrom**3 volume of integration vox.
+    :return: Similarity of the overlap integrals.
+    """
+    margin=marginMC
+    allCoor=np.concatenate((prbCoor,refCoor))
+    allVdw=np.concatenate((prbVdw,refVdw))
+    lenAll=allCoor.shape[0]
+    lenPrb=prbCoor.shape[0]
+    lenRef=refCoor.shape[0]
+    minValues=np.min(allCoor-allVdw-np.array([[margin]]),axis=0)
+    maxValues=np.min(allCoor+allVdw+np.array([[margin]]),axis=0)
+    boxvolume=np.prod(maxValues-minValues)
+    N=int(boxvolume*nMC)
+
+    nInMargin=0
+    intPrbPrb=0
+    intPrbRef=0
+    intRefRef=0
+    
+    for i in range(N):
+        x=np.random.uniform(minValues[0],maxValues[0])
+        y=np.random.uniform(minValues[1],maxValues[1])
+        z=np.random.uniform(minValues[2],maxValues[2])
+
+        distPrb=scipy.spatial.distance.cdist(np.array([[x,y,z]]),prbCoor)
+        distRef=scipy.spatial.distance.cdist(np.array([[x,y,z]]),refCoor)
+        distAll=np.concatenate((distPrb,distRef),axis=1)
+        distMinVdw=distAll-allVdw
+        minDist=np.min(distMinVdw)
+        if minDist<=margin and minDist>0:
+            nInMargin+=1
+            fPrb=sum([prbCharge[ii]/distPrb[0,ii] for ii in range(lenPrb)])
+            fRef=sum([refCharge[ii]/distRef[0,ii] for ii in range(lenRef)])
+            intPrbPrb+=fPrb*fPrb
+            intPrbRef+=fPrb*fRef
+            intRefRef+=fRef*fRef
+    factor=nInMargin/N*boxvolume/N
+    intPrbPrb*=factor
+    intPrbRef*=factor
+    intRefRef*=factor
+
+    similarity=SimilarityMetric(intPrbPrb,intRefRef,intPrbRef,metric)
+        
+    return similarity
+
+
+def ConstrainedEmbedMultipleConfs(mol,
+                                  core,
+                                  numConfs = 10,
+                                  useTethers=True,
+                                  coreConfId = -1,
+                                  randomseed = 2342,
+                                  getForceField = UFFGetMoleculeForceField,
+                                  **kwargs,
+):
     """
     Function to obtain multiple constrained embeddings per molecule. This was taken as is from:
     from https://github.com/rdkit/rdkit/issues/3266
@@ -161,7 +303,23 @@ def ConstrainedEmbedMultipleConfs(mol, core, numConfs=10, useTethers=True, coreC
     return mol
 
 
-def EmbedAlignConstrainedScore(prbMol,refMols,core,prbNumConfs=10,refNumConfs=10,prbCharge=None,refCharges=None):
+def EmbedAlignConstrainedScore(prbMol,
+                               refMols,
+                               core,
+                               prbNumConfs = 10,
+                               refNumConfs = 10,
+                               prbCharge = [],
+                               refCharges = [],
+                               metric = "carbo",
+                               integrate = "gauss",
+                               partialCharges = "gasteiger",
+                               renormalize = False,
+                               customrange = None,
+                               marginMC = 10,
+                               nMC = 1,
+                               basisPsi4 = '3-21G',
+                               methodPsi4 = 'scf',
+                               gridPsi4 = 1,):
     """Calculates a constrained alignment based on a common pattern in the input molecules. Caution: Will fail if the pattern does not match. 
     Calculates a shape and electrostatic potential similarity of the best alignment.
 
@@ -172,14 +330,24 @@ def EmbedAlignConstrainedScore(prbMol,refMols,core,prbNumConfs=10,refNumConfs=10
     :param refNumConfs: Number of conformers to create for each reference molecule. A higher number creates better alignments but slows down the algorithm.
     :param prbCharge: (optional) List or array of partial charges of the probe molecule. If not given, RDKit Gasteiger Charges are used as default.
     :param refCharge: (optional) List of list or 2D array of partial charges of the reference molecules. If not given, RDKit Gasteiger Charges are used as default.
+    :param metric:  (optional) Similarity metric.
+    :param integrate: (optional) Integration method.
+    :param partialCharges: (optional) Partial charge distribution.
+    :param renormalize: (optional) Boolean whether to renormalize the similarity score to [0:1].
+    :param customrange: (optional) Custom range to renormalize to, supply as tuple or list of two values (lower bound, upper bound).
+    :param marginMC: (optional) Margin up to which to integrate (added to coordinates plus/minus their vdW radii) if MC integration is utilized.
+    :param nMC: (optional) Number of grid points per 1 Angstrom**3 volume of integration vox if MC integration is utilized.
+    :param basisPsi4: (optional) Basis set for Psi4 calculation.
+    :param methodPsi4: (optional) Method for Psi4 calculation.
+    :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
     :return: shape similarity and ESP similarity.
     """
     
     if type(refMols) != list:
         refMols=[refMols]
 
-    if refCharges == None:
-        refCharges=[None]*len(refMols)
+    if refCharges == []:
+        refCharges=[[]]*len(refMols)
         
     prbMol=ConstrainedEmbedMultipleConfs(prbMol, core, numConfs=prbNumConfs)
     for refMol in refMols:
@@ -202,7 +370,8 @@ def EmbedAlignConstrainedScore(prbMol,refMols,core,prbNumConfs=10,refNumConfs=10
                     shapeDist=shape
                     prbBestConf=j
                     refBestConf=i
-        espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx])
+        espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
+                         partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
         allShapeDist.append(1-shapeDist)
         allEspSim.append(espSim)
 
