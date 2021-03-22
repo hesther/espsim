@@ -15,11 +15,11 @@ This repository contains a small code snippet to calculate similarities of shape
 
 It is easiest to install all required packages inside a conda environment. If you want to use jupyter notebooks, and plot 3D representations using py3Dmol, create the following environment (here named `espsim`):
 
-`conda create -n espsim -c conda-forge conda-forge::rdkit numpy scipy jupyter py3dmol`
+`conda create -n espsim -c rdkit rdkit numpy scipy jupyter py3dmol`
 
 If you don't need jupyter, you can create an environment with less packages:
 
-`conda create -n espsim -c conda-forge conda-forge::rdkit numpy scipy`
+`conda create -n espsim -c rdkit rdkit numpy scipy`
 
 Next, activate the environment:
 
