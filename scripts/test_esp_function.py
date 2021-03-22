@@ -1,5 +1,4 @@
-from espsim import GetEspSim
-from espsim.helpers import readMolFile, readMol2File, readSdfFile
+from espsim import GetEspSim, readMolFile, readMol2File, readSdfFile
 
 #The following block of code reads in prealigned molecules in mol format and calculates their ESP similarity:
 mol1=readMolFile("scripts/prbmol1.mol")
