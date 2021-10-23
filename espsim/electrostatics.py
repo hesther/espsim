@@ -36,7 +36,13 @@ def GetMolProps(mol,
                 charge=np.array([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])
         elif partialCharges == "mmff":
             mp = AllChem.MMFFGetMoleculeProperties(mol)
-            charge=np.array([mp.GetMMFFPartialCharge(i) for i in range(mol.GetNumAtoms())])
+            if mp:
+                charge=np.array([mp.GetMMFFPartialCharge(i) for i in range(mol.GetNumAtoms())])
+            else:
+                print("MMFF charges not available for the input molecule, defaulting to Gasteiger charges.")
+                AllChem.ComputeGasteigerCharges(mol)
+                charge=np.array([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])
+
         elif partialCharges == "resp":
             xyz=Chem.rdmolfiles.MolToXYZBlock(mol,confId=cid)
             charge=psi4Charges(xyz,basisPsi4,methodPsi4,gridPsi4)
@@ -370,6 +376,9 @@ def EmbedAlignConstrainedScore(prbMol,
                     shapeDist=shape
                     prbBestConf=j
                     refBestConf=i
+        #Go back to best alignment
+        AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=prbBestConf,refCid=refBestConf)
+        
         espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
                          partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
         allShapeDist.append(1-shapeDist)
