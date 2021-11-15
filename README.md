@@ -1,5 +1,5 @@
 # Comparison of electrostatic potential and shape
-This repository contains a small code snippet to calculate similarities of shapes and electrostatic potentials between molecules. It is based on Python3, RDKit, Numpy and Scipy. The package furthermore contains functionalities to embed (create 3D coordinates) molecules with a constrained core using RDKit functions.
+This repository contains a small code snippet to calculate similarities of shapes and electrostatic potentials between molecules, see [manuscript](https://chemrxiv.org/engage/chemrxiv/article-details/6182a7f68ac7a22cf566624d). It is based on Python3, RDKit, Numpy and Scipy. The package furthermore contains functionalities to embed (create 3D coordinates) molecules with a constrained core using RDKit functions.
 
 ## Table of Contents
 
@@ -8,6 +8,7 @@ This repository contains a small code snippet to calculate similarities of shape
   * [ESP similarity](#esp-similarity)
   * [Further options](#further-options)
   * [Embedding, alignment and similarity](#embedding-alignment-and-similarity)
+  * [Embedding without constrained core](#embedding-without-constrained-core)
   * [Jupyter demo](#jupyter-demo)
 - [Contact](#contact)
 
@@ -74,7 +75,11 @@ If you need to embed and align the the probe and reference molecule, espsim prov
 
 `python scripts/test_embedalignscore.py`
 
-The function `EmbedAlignConstrainedScore()` takes several optional input arguments as well: `prbNumConfs` and `refNumConfs`, which are the number of conformers to be created for each probe and reference molecule. (The default is 10 each). The more conformers, the more accurate the results, since a better alignment may be found. Thus, the computed shape and ESP similarities are actually lower bounds to the true values (with perfectly aligned conformers). The function also takes `prbCharge` (list or 1D array of partial charges for the probe molecule) and `refCharges` (list of list, or 2D array of partial charges of all reference molecules) as input. If not specified (default), RDKit partial charges are calculated (Gasteiger charges). The option to input partial charges is especially convenient if you have already pre-computed charges, for example from quantum mechanics. The order of the inputted partial charges must be the same as the atoms in the RDKit molecules. Further options (partial charge distribution, metric, renormalization, integration routine) can be specified analogous to the `GetEspSim()` function.
+The function `EmbedAlignConstrainedScore()` takes several optional input arguments as well: `prbNumConfs` and `refNumConfs`, which are the number of conformers to be created for each probe and reference molecule. (The default is 10 each). The more conformers, the more accurate the results, since a better alignment may be found. Thus, the computed shape and ESP similarities are actually lower bounds to the true values (with perfectly aligned conformers). The function also takes `prbCharge` (list or 1D array of partial charges for the probe molecule) and `refCharges` (list of list, or 2D array of partial charges of all reference molecules) as input. If not specified (default), RDKit partial charges are calculated (Gasteiger charges). The option to input partial charges is especially convenient if you have already pre-computed charges, for example from quantum mechanics. The order of the inputted partial charges must be the same as the atoms in the RDKit molecules. Further options (partial charge distribution, metric, renormalization, integration routine) can be specified analogous to the `GetEspSim()` function. Finally, you may choose to calculate ESP similarities at every alignment (not only the best alignment based on shape), which may be achieved via `getBestESP = True` (caution, this takes longer to compute).
+
+### Embedding without constrained core
+
+(Caution: This feature is currently experimental and not well tested yet). For molecules without common core, the function `EmbedAlignScore()` can be used instead of `EmbedAlignConstrainedScore()` (with the same input arguments except the `core` argument). Here, identificiation of the best alignment via shape scores only often leads to poor ESP similarities, so that it is often necessary to use `getBestESP = True`.
 
 ### Jupyter demo
 
