@@ -1,6 +1,8 @@
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem.AllChem import AlignMol, EmbedMolecule, EmbedMultipleConfs
+from rdkit.Chem import rdMolAlign
+from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem.rdForceFieldHelpers import UFFGetMoleculeForceField
 import numpy as np
 import scipy.spatial
@@ -57,6 +59,21 @@ def GetMolProps(mol,
 
     return coor,charge
     
+def GetShapeSim(prbMol,
+              refMol,
+              prbCid = -1,
+              refCid = -1):
+    """
+    Calculates the similarity of the shape between two previously aligned molecules.
+    :param prbMol: RDKit mol object of the probe molecule.
+    :param refMol: RDKit mol object of the reference molecule.
+    :param prbCid: Index of the conformer of the probe molecule to be used for 3D coordinates.
+    :param refCid: Index of the conformer of the reference molecule to be used for 3D coordinates.
+    :return: Shape score
+    """
+
+    return 1 - AllChem.ShapeTanimotoDist(prbMol,refMol,confId1=prbCid,confId2=refCid)
+
 def GetEspSim(prbMol,
               refMol,
               prbCid = -1,
@@ -325,7 +342,8 @@ def EmbedAlignConstrainedScore(prbMol,
                                nMC = 1,
                                basisPsi4 = '3-21G',
                                methodPsi4 = 'scf',
-                               gridPsi4 = 1,):
+                               gridPsi4 = 1,
+                               getBestESP = False):
     """Calculates a constrained alignment based on a common pattern in the input molecules. Caution: Will fail if the pattern does not match. 
     Calculates a shape and electrostatic potential similarity of the best alignment.
 
@@ -346,6 +364,7 @@ def EmbedAlignConstrainedScore(prbMol,
     :param basisPsi4: (optional) Basis set for Psi4 calculation.
     :param methodPsi4: (optional) Method for Psi4 calculation.
     :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
+    :param getBestESP: Whether to select best alignment via ESP instead of shape.
     :return: shape similarity and ESP similarity.
     """
     
@@ -360,29 +379,148 @@ def EmbedAlignConstrainedScore(prbMol,
         refMol=ConstrainedEmbedMultipleConfs(refMol, core, numConfs=refNumConfs)
         
     prbMatch = prbMol.GetSubstructMatch(core)
-    allShapeDist = []
+    allShapeSim = []
     allEspSim = []
-    
-    for idx,refMol in enumerate(refMols):
-        shapeDist=1
-        prbBestConf=0
-        refBestConf=0
-        refMatch = refMol.GetSubstructMatch(core)
-        for i in range(refNumConfs):
-            for j in range(prbNumConfs):
-                AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=j,refCid=i)
-                shape = AllChem.ShapeTanimotoDist(prbMol,refMol,confId1=j,confId2=i)
-                if shape<shapeDist:
-                    shapeDist=shape
-                    prbBestConf=j
-                    refBestConf=i
-        #Go back to best alignment
-        AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=prbBestConf,refCid=refBestConf)
+
+    if not getBestESP:
+        for idx,refMol in enumerate(refMols):
+            shapeSim=0
+            prbBestConf=0
+            refBestConf=0
+            refMatch = refMol.GetSubstructMatch(core)
+            for i in range(refNumConfs):
+                for j in range(prbNumConfs):
+                    AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=j,refCid=i)
+                    shape = GetShapeSim(prbMol,refMol,j,i)
+                    if shape>shapeSim:
+                        shapeSim=shape
+                        prbBestConf=j
+                        refBestConf=i
+            #Go back to best alignment
+            AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=prbBestConf,refCid=refBestConf)
         
-        espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
-                         partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
-        allShapeDist.append(1-shapeDist)
-        allEspSim.append(espSim)
+            espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
+                             partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
+            allShapeSim.append(shapeSim)
+            allEspSim.append(espSim)
+    else:
+        for idx,refMol in enumerate(refMols):
+            espSim=0
+            shapeSim=0
+            refMatch = refMol.GetSubstructMatch(core)
+            for i in range(refNumConfs):
+                for j in range(prbNumConfs):
+                    AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=j,refCid=i)
+                    score = GetEspSim(prbMol,refMol,j,i,prbCharge,refCharges[idx],metric,integrate,
+                                      partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
+                    if score>espSim:
+                        espSim=score
+                    shape = GetShapeSim(prbMol,refMol,j,i)
+                    if shape>shapeSim:
+                        shapeSim=shape
+            allShapeSim.append(shapeSim)
+            allEspSim.append(espSim)
+            
+    return allShapeSim,allEspSim
 
-    return allShapeDist,allEspSim
 
+def EmbedAlignScore(prbMol,
+                    refMols,
+                    prbNumConfs = 10,
+                    refNumConfs = 10,
+                    prbCharge = [],
+                    refCharges = [],
+                    metric = "carbo",
+                    integrate = "gauss",
+                    partialCharges = "gasteiger",
+                    renormalize = False,
+                    customrange = None,
+                    marginMC = 10,
+                    nMC = 1,
+                    basisPsi4 = '3-21G',
+                    methodPsi4 = 'scf',
+                    gridPsi4 = 1,
+                    getBestESP = False):
+    """Calculates a general alignment in the input molecules.
+    Calculates a shape and electrostatic potential similarity of the best alignment.
+
+    :param prbMol: RDKit molecule for which shape and electrostatic similarities are calculated.
+    :param refMol: RDKit molecule or list of RDKit molecules serving as references.
+    :param prbNumConfs: Number of conformers to create for the probe molecule. A higher number creates better alignments but slows down the algorithm.
+    :param refNumConfs: Number of conformers to create for each reference molecule. A higher number creates better alignments but slows down the algorithm.
+    :param prbCharge: (optional) List or array of partial charges of the probe molecule. If not given, RDKit Gasteiger Charges are used as default.
+    :param refCharge: (optional) List of list or 2D array of partial charges of the reference molecules. If not given, RDKit Gasteiger Charges are used as default.
+    :param metric:  (optional) Similarity metric.
+    :param integrate: (optional) Integration method.
+    :param partialCharges: (optional) Partial charge distribution.
+    :param renormalize: (optional) Boolean whether to renormalize the similarity score to [0:1].
+    :param customrange: (optional) Custom range to renormalize to, supply as tuple or list of two values (lower bound, upper bound).
+    :param marginMC: (optional) Margin up to which to integrate (added to coordinates plus/minus their vdW radii) if MC integration is utilized.
+    :param nMC: (optional) Number of grid points per 1 Angstrom**3 volume of integration vox if MC integration is utilized.
+    :param basisPsi4: (optional) Basis set for Psi4 calculation.
+    :param methodPsi4: (optional) Method for Psi4 calculation.
+    :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
+    :param getBestESP: Whether to select best alignment via ESP instead of shape.
+    :return: shape similarity and ESP similarity.
+    """
+    
+    if type(refMols) != list:
+        refMols=[refMols]
+
+    if refCharges == []:
+        refCharges=[[]]*len(refMols)
+        
+    AllChem.EmbedMultipleConfs(prbMol, prbNumConfs, AllChem.ETKDGv2())
+    for refMol in refMols:
+        AllChem.EmbedMultipleConfs(refMol, refNumConfs, AllChem.ETKDGv2())
+
+    prbCrippen = rdMolDescriptors._CalcCrippenContribs(prbMol)
+
+    allShapeSim = []
+    allEspSim = []
+
+    if not getBestESP:
+        for idx,refMol in enumerate(refMols):
+            shapeSim=0
+            prbBestConf=0
+            refBestConf=0
+            refCrippen = rdMolDescriptors._CalcCrippenContribs(refMol)
+            for i in range(refNumConfs):
+                for j in range(prbNumConfs):
+                    alignment = rdMolAlign.GetCrippenO3A(prbMol, refMol, prbCrippen, refCrippen, j, i)
+                    alignment.Align()
+                    shape = GetShapeSim(prbMol,refMol,j,i)
+                    if shape>shapeSim:
+                        shapeSim=shape
+                        prbBestConf=j
+                        refBestConf=i
+            #Go back to best alignment
+            alignment = rdMolAlign.GetCrippenO3A(prbMol, refMol, prbCrippen, refCrippen, prbBestConf, refBestConf)
+            alignment.Align()
+        
+            espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
+                             partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
+            allShapeSim.append(shapeSim)
+            allEspSim.append(espSim)
+    else:
+         for idx,refMol in enumerate(refMols):
+            espSim=0
+            shapeSim=0
+            prbBestConf=0
+            refBestConf=0
+            refCrippen = rdMolDescriptors._CalcCrippenContribs(refMol)
+            for i in range(refNumConfs):
+                for j in range(prbNumConfs):
+                    alignment = rdMolAlign.GetCrippenO3A(prbMol, refMol, prbCrippen, refCrippen, j, i)
+                    alignment.Align()
+                    score = GetEspSim(prbMol,refMol,j,i,prbCharge,refCharges[idx],metric,integrate,
+                                      partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
+                    if score>espSim:
+                        espSim=score
+                    shape = GetShapeSim(prbMol,refMol,j,i)
+                    if shape>shapeSim:
+                        shapeSim=shape
+            allShapeSim.append(shapeSim)
+            allEspSim.append(espSim)           
+
+    return allShapeSim,allEspSim
