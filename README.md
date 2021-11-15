@@ -45,7 +45,7 @@ which should print `Test passed, imports work fine.` or tell you which package/m
 
 ## Usage
 
-Within a python script, you can either use only the ESP similarity routine on previously embedded, aligned RDKit molecule objects using the function `GetEspSim()` or use `EmbedAlignConstrainedScore()` to embed, align and score molecules. 
+Within a python script, you can either use only the ESP similarity routine on previously embedded, aligned RDKit molecule objects using the function `GetEspSim()` or use `EmbedAlignConstrainedScore()` to embed, align and score molecules with a common core, or `EmbedAlignScore()` to embed, align and score molecules without a common core. 
 
 ### ESP similarity
 
