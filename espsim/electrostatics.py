@@ -174,11 +174,11 @@ def GaussInt(dist,
                 [-0.04539319, -0.2513    , -0.00258662],
                 [-0.00247124, -0.00258662, -0.0013    ]])
 
-    #a_flat = a.flatten() 
-    #b_flat = b.flatten()
-    #dist = (dist**2).flatten()
-    #charges = (charge1[:,None]*charge2).flatten() #pairwise products of atomic charges, flattened 
-    #return ((a_flat[:,None] * np.exp(dist * b_flat[:,None])).sum(0) * charges).sum()
+    a_flat = a.flatten() 
+    b_flat = b.flatten()
+    dist = (dist**2).flatten()
+    charges = (charge1[:,None]*charge2).flatten() #pairwise products of atomic charges, flattened 
+    return ((a_flat[:,None] * np.exp(dist * b_flat[:,None])).sum(0) * charges).sum()
 
 def GetIntegralsViaMC(prbCoor,
                       refCoor,
