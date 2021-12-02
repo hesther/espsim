@@ -173,18 +173,12 @@ def GaussInt(dist,
     b=np.array([[-0.02495   , -0.04539319, -0.00247124],
                 [-0.04539319, -0.2513    , -0.00258662],
                 [-0.00247124, -0.00258662, -0.0013    ]])
-    
-    intOverall=0
-    for idx1 in range(charge1.shape[0]):
-        for idx2 in range(charge2.shape[0]):
-            intGauss=0
-            for i in range(3):
-                intGauss+=a[i,i]*np.exp(b[i,i]*dist[idx1,idx2]**2) #Diagonal (11, 22, 33)
-                for j in range(i+1,3):
-                    intGauss+=2*a[i,j]*np.exp(b[i,j]*dist[idx1,idx2]**2) #Off diagonal, 12, 13, 21, 23, 31, 32 = 2*(12,13,23)
-            intOverall+=charge1[idx1]*charge2[idx2]*intGauss
-    return intOverall
 
+    a_flat = a.flatten() 
+    b_flat = b.flatten()
+    dist = (dist**2).flatten()
+    charges = (charge1[:,None]*charge2).flatten() #pairwise products of atomic charges, flattened 
+    return ((a_flat[:,None] * np.exp(dist * b_flat[:,None])).sum(0) * charges).sum()
 
 def GetIntegralsViaMC(prbCoor,
                       refCoor,
