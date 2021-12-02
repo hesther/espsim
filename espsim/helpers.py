@@ -17,7 +17,7 @@ def Renormalize(similarity,
     elif metric=="carbo":
         similarity=(similarity+1)/2
     elif metric=="tanimoto":
-        similarity=(similarity+0.3)/1.3
+        similarity=(similarity+1/3)/(4/3)
     else:
         raise ValueError("Unknown metric.")
     return similarity
