@@ -79,7 +79,7 @@ try:
                    'METHOD_ESP' : methodPsi4,
         }
 
-        charge = resp.resp([mol], [options])[0][1]
+        charge = resp.resp([mol], options)[1]
         return charge
 except ImportError:
     def psi4Charges(xyz,
