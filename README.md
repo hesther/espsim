@@ -1,6 +1,10 @@
 # Comparison of electrostatic potential and shape
 This repository contains a small code snippet to calculate similarities of shapes and electrostatic potentials between molecules, see [manuscript](https://chemrxiv.org/engage/chemrxiv/article-details/6182a7f68ac7a22cf566624d). It is based on Python3, RDKit, Numpy and Scipy. The package furthermore contains functionalities to embed (create 3D coordinates) molecules with a constrained core using RDKit functions.
 
+## New
+
+* December 2021: ESPsim has exciting new features: A machine-learned partial charge model, as well as aligning and scoring of molecules without a common core. We furthermore added various benchmarks, see jupyter notebooks in the benchmarks folder.
+
 ## Table of Contents
 
 - [Installation](#installation)
@@ -14,28 +18,19 @@ This repository contains a small code snippet to calculate similarities of shape
 
 ## Installation
 
-It is easiest to install all required packages inside a conda environment. If you want to use jupyter notebooks, and plot 3D representations using py3Dmol, create the following environment (here named `espsim`):
+It is easiest to install all required packages inside a conda environment. Run
 
-`conda create -n espsim -c rdkit rdkit numpy scipy jupyter py3dmol`
+`conda env create -f environment.yml`
 
-If you don't need jupyter, you can create an environment with less packages:
-
-`conda create -n espsim -c rdkit rdkit numpy scipy`
-
-Next, activate the environment:
+to install all necessary packages. Next, activate the environment:
 
 `conda activate espsim`
 
-(or `source activate espsim` if you have an older version of conda). If you wish to calculate quantum mechanical partial charges with Psi4, install the Psi4 package and RESP plugin via (optional):
+(or `source activate espsim` if you have an older version of conda). If you don't want to use conda, install Python3, RDKit, Numpy, Scipy, Scikit-Learn, Pytorch, Tqdm, as well as optionally Jupyter, py3Dmol, Psi4, RESP (for calculation of quantum mechanical partial charges), and https://github.com/hesther/chemprop-atom-bond.git (for calculation of machine-learned partial charges) in any way convenient to you.
 
-`conda install -c psi4 psi4 resp`
+Now, install espsim as a pip package as follows:
 
-If you don't want to use conda, install Python3, RDKit, Numpy and Scipy, as well as optionally Jupyter, py3Dmol, Psi4 and RESP  in any way convenient to you.
-
-Now, install espsim as a pip package as follows, by (1) changing the directory to wherever you saved espsim (use the correct path instead of `<pathtoespsim>`) and compiling the package (2):
-
-1. `cd <pathtoespsim>`
-2. `pip install -e .`
+`pip install -e .`
 
 Then you can use `import espsim` or from `espsim import ...` in your code. To test your installation, run
 
@@ -63,10 +58,10 @@ then becomes a sum of a large number of two-center integrals of Gaussians for wh
 ESPsim provides a range of options to customize the behavior of `GetEspSim()`:
 
 * `prbCharge`  and `refCharge` to use custom partial charges.
-* `metric` determines the similarity metric used. Defaults to `metric = "carbo"` (Carbo similarity). Currently implemented: `carbo` and `tanimoto` (Tanimoto similarity, which is the overlap integral of A and B divided by the sum of the norms of A and B minus the overlap integral).
+* `metric` determines the similarity metric used. Defaults to `metric = "carbo"` (Carbo similarity). Currently implemented: `carbo` with a range of -1 to 1 and `tanimoto` with a range of -1/3 to 1 (Tanimoto similarity, which is the overlap integral of A and B divided by the sum of the norms of A and B minus the overlap integral).
 * `renormalize` is a Boolean which determines whether the obtained similarities should be rescaled to the range `[0:1]` (or to a custom range, given by `customrange`)
 * `integrate` determines the integration routine. Defaults to `integrate = "gauss"` (analytic integration via Gaussian functions). Currently implemented: `gauss` and `mc` (Monte Carlo numeric integration). The main difference between the two is that integration via Gaussian functions encompasses integration over all space (including within van-der-Waals radii of atoms, and locations far away from the molecule), whereas the MC integration is local (up to a specified margin around the molecules), and excludes space within the van-der-Waals radii of atoms. The margin of the MC integration, i.e. the minimum distance between the van-der-Waals surface and the integration box can be specified via `marginMC` in Angstrom, and defaults to 10 Angstrom. Smaller integration margins yield a similarity comparison for the immediate vicinity of the molecule. The number of points of the integration per 1 cubic Angstrom can be set by `nMC`, and defaults to 1. Smaller numbers, such as 0.1 or 0.01 speed up the calculation but decrease the accuracy of the integration.
-* `partialCharges` determines the partial charge distribution to use. Defaults to `partialCharges = "gasteiger"`. Currently implemented: `gasteiger`, `mmff` (Merk Molecular Force Field MMFF94) or `resp` (quantum-mechanical determination of partial charges via Psi4 and fitting to the electrostatic potential under constraints (RESP)). Note that `resp` is much slower than using Gasteiger or MMFF94 charges. The method and basis set of the quantum mechanical calculation can be customized via `methodPsi4` (default `"scf"`, that is, Hartree-Fock) and `basisPsi4` (default `"3-21G"`). For available options, refer to Psi4. The number of electrostatic potential grid points within Psi4 can be regulated via `gridPsi4` (default `1`, that is 1 grid point per cubic Angstrom).
+* `partialCharges` determines the partial charge distribution to use. Defaults to `partialCharges = "gasteiger"`. Currently implemented: `gasteiger`, `mmff` (Merk Molecular Force Field MMFF94), `ml` (Machine learning model adapted from [this article](https://doi.org/10.1039/D0SC04823B) - caution, only trained on neutral molecules!), or `resp` (quantum-mechanical determination of partial charges via Psi4 and fitting to the electrostatic potential under constraints (RESP)). Note that `resp` is much slower than using Gasteiger, MMFF94 or machine-learned charges. The method and basis set of the quantum mechanical calculation can be customized via `methodPsi4` (default `"scf"`, that is, Hartree-Fock) and `basisPsi4` (default `"3-21G"`). For available options, refer to Psi4. The number of electrostatic potential grid points within Psi4 can be regulated via `gridPsi4` (default `1`, that is 1 grid point per cubic Angstrom).
 
 
 ### Embedding, alignment and similarity
@@ -88,6 +83,11 @@ The `scripts` folder also holds a short demo of espsim on Jupyter. To view it, p
 `jupyter notebook`
 
 and click on `scripts` and `short_demonstration.ipynb`. The file holds more information and explanations about espsim, as well as some 3D visualizations of molecule embeddings. The 3D visualizations are especially helpful to view the results of the constrained embedding and alignment. The notebook furthermore holds more detailed information about the integration of the electrostatic potenital.
+
+### Benchmarks
+
+Visit the `benchmarks` folder to show scripts to benchmark ESP-Sim on DUD-E and [D4-rescore](https://github.com/ljmartin/d4-rescore), compare performance across different partial charges, as well as against EON.
+
 
 ## Contact
 Feel free to post questions, feedback, errors or concerns on github, or email to eheid@mit.edu.

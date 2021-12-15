@@ -6,7 +6,7 @@ from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem.rdForceFieldHelpers import UFFGetMoleculeForceField
 import numpy as np
 import scipy.spatial
-from .helpers import Renormalize, SimilarityMetric, psi4Charges
+from .helpers import Renormalize, SimilarityMetric, psi4Charges, mlCharges
 
 def GetMolProps(mol,
                 cid,
@@ -44,6 +44,8 @@ def GetMolProps(mol,
                 print("MMFF charges not available for the input molecule, defaulting to Gasteiger charges.")
                 AllChem.ComputeGasteigerCharges(mol)
                 charge=np.array([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])
+        elif partialCharges == 'ml':
+            charge=np.array(mlCharges([mol])[0])
 
         elif partialCharges == "resp":
             xyz=Chem.rdmolfiles.MolToXYZBlock(mol,confId=cid)

@@ -1,0 +1,22 @@
+name: espsim
+
+channels:
+  - rdkit
+  - pytorch
+  - psi4
+  - conda-forge
+
+dependencies:
+  - rdkit
+  - pytorch
+  - numpy
+  - scikit-learn
+  - scipy
+  - tqdm
+  - jupyter
+  - py3dmol
+  - psi4
+  - resp
+  - pip
+  - pip:
+    - git+https://github.com/hesther/chemprop-atom-bond.git
