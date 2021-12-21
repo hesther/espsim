@@ -12,6 +12,8 @@ dependencies:
   - numpy
   - scikit-learn
   - scipy
+  - matplotlib
+  - joblib
   - tqdm
   - jupyter
   - py3dmol
