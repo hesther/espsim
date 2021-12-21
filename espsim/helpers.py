@@ -1,5 +1,9 @@
 import numpy as np
 from rdkit import Chem
+from rdkit.Chem import AllChem
+from argparse import Namespace
+import os
+import contextlib
 
 def Renormalize(similarity,
                 metric = "carbo",
@@ -91,6 +95,71 @@ except ImportError:
         Mock implementation raising an ImportError if psi4 and resp cannot be imported.
         """
         raise ImportError("Failed to import Psi4 and RESP. Please install via 'conda install -c psi4 psi4 resp'")
+
+def num_atoms_bonds(smiles):
+    m = Chem.MolFromSmiles(smiles)
+    m = Chem.AddHs(m)
+    return len(m.GetAtoms()), len(m.GetBonds())
+
+def get_reorder_list(mol):
+    """ Returns the order of atoms or bonds of the current molecule compared to a molecule in Chemprop
+    :param mol: RDKit molecule object
+    :return: List of indices, to be used to reorder molecules or atom/bond feature lists.
+    """
+    chemprop_mol=Chem.AddHs(Chem.MolFromSmiles(Chem.MolToSmiles(mol)))
+
+    if chemprop_mol.GetNumAtoms() != mol.GetNumAtoms():
+        raise ValueError("Could not set up canonical molecule for reordering.")
+
+    atom_order=list(chemprop_mol.GetSubstructMatch(mol))    
+
+    if chemprop_mol.GetNumAtoms() != len(atom_order):
+        raise ValueError("Could not reorder partial charges for molecule of length",chemprop_mol.GetNumAtoms(),"with subgraph match of only length",len(atom_order))
+    
+    return atom_order
+
+try:
+    from chemprop.train import make_predictions
+
+    def mlCharges(mols):
+        """
+        Calc ML charges
+        """
+
+        #MUST use mols with hydrogens!
+        smiles = [Chem.MolToSmiles(mol) for mol in mols]
+
+        path = os.path.dirname(__file__)
+        args = Namespace(batch_size=50, checkpoint_dir=None, checkpoint_path=path+'/QM_137k.pt', checkpoint_paths=[path+'/QM_137k.pt'], cuda=False, features_generator=None, features_path=None, gpu=None, max_data_size=None, no_features_scaling=False, preds_path=None, test_path=None, use_compound_names=False)
+
+        with open(os.devnull, 'w') as devnull:
+            with contextlib.redirect_stdout(devnull):
+                test_preds, test_smiles = make_predictions(args, smiles=smiles)
+        n_atoms, n_bonds = zip(*[num_atoms_bonds(x) for x in smiles])
+        partial_charge = test_preds[0]
+        partial_charge = np.split(partial_charge.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
+
+        charges=[]
+        for i,mol in enumerate(mols):
+            try:
+                reorder_list = get_reorder_list(mol)
+                charges.append([partial_charge[i][reorder_list[x]] for x in range(mol.GetNumAtoms())])
+            except ValueError:
+                #Could not get prediction, default to Gasteiger
+                print("Warning: could not obtain prediction, defaulting to Gasteiger charges for one molecule")
+                AllChem.ComputeGasteigerCharges(mol)
+                charges.append([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])
+            
+
+        return charges
+
+except ImportError:
+    def mlCharges(mols):
+        """
+        Mock implementation raising an ImportError if the ML model cannot be imported.
+        """
+        raise ImportError("Failed to import the atomic Chemprop model. Please install via 'pip install git+https://github.com/hesther/chemprop-atom-bond.git'")
+
 
 def readMolFile(f):
     """
