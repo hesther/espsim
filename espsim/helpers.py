@@ -4,6 +4,7 @@ from rdkit.Chem import AllChem
 from argparse import Namespace
 import os
 import contextlib
+import pkg_resources
 
 def Renormalize(similarity,
                 metric = "carbo",
@@ -129,8 +130,8 @@ try:
         #MUST use mols with hydrogens!
         smiles = [Chem.MolToSmiles(mol) for mol in mols]
 
-        path = os.path.dirname(__file__)
-        args = Namespace(batch_size=50, checkpoint_dir=None, checkpoint_path=path+'/QM_137k.pt', checkpoint_paths=[path+'/QM_137k.pt'], cuda=False, features_generator=None, features_path=None, gpu=None, max_data_size=None, no_features_scaling=False, preds_path=None, test_path=None, use_compound_names=False)
+        path = pkg_resources.resource_filename(__name__, 'QM_137k.pt')
+        args = Namespace(batch_size=50, checkpoint_dir=None, checkpoint_path=path, checkpoint_paths=[path], cuda=False, features_generator=None, features_path=None, gpu=None, max_data_size=None, no_features_scaling=False, preds_path=None, test_path=None, use_compound_names=False)
 
         with open(os.devnull, 'w') as devnull:
             with contextlib.redirect_stdout(devnull):
