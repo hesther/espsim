@@ -25,5 +25,7 @@ setup(
         'shape',
         'similarity',
         'RDKit'
-    ]
+    ],
+    include_package_data=True,
+    package_data={'': ['QM_137k.pt']},
 )
