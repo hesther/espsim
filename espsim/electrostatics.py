@@ -6,7 +6,7 @@ from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem.rdForceFieldHelpers import UFFGetMoleculeForceField
 import numpy as np
 import scipy.spatial
-from .helpers import Renormalize, SimilarityMetric, psi4Charges, mlCharges
+from .helpers import Renormalize, SimilarityMetric, psi4Charges, mlCharges, check_hs
 
 def GetMolProps(mol,
                 cid,
@@ -92,6 +92,7 @@ def GetEspSim(prbMol,
               basisPsi4 = '3-21G',
               methodPsi4 = 'scf',
               gridPsi4 = 1,
+              nocheck=False,
 ):
     """
     Calculates the similarity of the electrostatic potential around two previously aligned molecules.
@@ -111,9 +112,15 @@ def GetEspSim(prbMol,
     :param basisPsi4: (optional) Basis set for Psi4 calculation.
     :param methodPsi4: (optional) Method for Psi4 calculation.
     :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
+    :param nocheck: (optional) whether no checks on explicit hydrogens should be run. Speeds up the function, but use wisely.
     :return: Similarity score.
     """
 
+    #Check hydrogens
+    if not nocheck:
+        check_hs(prbMol)
+        check_hs(refMol)
+    
     #Set up probe molecule properties:
     prbCoor,prbCharge=GetMolProps(prbMol,prbCid,prbCharge,partialCharges,basisPsi4,methodPsi4,gridPsi4)
     refCoor,refCharge=GetMolProps(refMol,refCid,refCharge,partialCharges,basisPsi4,methodPsi4,gridPsi4)
