@@ -5,7 +5,15 @@ from argparse import Namespace
 import os
 import contextlib
 import pkg_resources
+import warnings
 
+def check_hs(mol):
+    """Checks whether a molecule misses explicit hydrogens and throws a warning.
+    :param mol: RDKit molecule
+    """
+    if not mol.GetNumAtoms() == Chem.AddHs(mol).GetNumAtoms():
+        warnings.warn('Input molecule missing hydrogens. Use Chem.AddHs() to make hydrogens explicit.')
+        
 def Renormalize(similarity,
                 metric = "carbo",
                 customrange = None,
