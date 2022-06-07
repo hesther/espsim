@@ -1,8 +1,9 @@
 # Comparison of electrostatic potential and shape
-This repository contains a small code snippet to calculate similarities of shapes and electrostatic potentials between molecules, see [manuscript](https://chemrxiv.org/engage/chemrxiv/article-details/6182a7f68ac7a22cf566624d). It is based on Python3, RDKit, Numpy and Scipy. The package furthermore contains functionalities to embed (create 3D coordinates) molecules with a constrained core using RDKit functions.
+This repository contains a small code snippet to calculate similarities of shapes and electrostatic potentials between molecules, see [manuscript](https://doi.org/10.1021/acs.jcim.1c01535). It is based on Python3, RDKit, Numpy and Scipy. The package furthermore contains functionalities to embed (create 3D coordinates) molecules with a constrained core using RDKit functions.
 
 ## New
 
+* Want to participate in an in-depth ESPsim workshop? Join us on June 23, 2022! Participation is free, but registration required [here](https://www.eventbrite.com/e/open-source-tools-for-chemistry-tickets-294585512197?). Workshop materials will be posted after the workshop.
 * December 2021: ESPsim has exciting new features: A machine-learned partial charge model, as well as aligning and scoring of molecules without a common core. We furthermore added various benchmarks, see jupyter notebooks in the benchmarks folder.
 
 ## Table of Contents
