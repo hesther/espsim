@@ -18,16 +18,16 @@ You can install ESPsim locally via Conda or Pip. We strongly recommend Conda or 
 
 To create a conda environment and install all necessary packages, run:
 
-`conda env create -n espsim -c rdkit -c conda-forge rdkit numpy scipy matplotlib joblib tqdm pytorch jupyter py3dmol`
-`conda activate espsim`
-`pip install git+https://github.com/hesther/chemprop-atom-bond.git`
-`pip install git+https://github.com/hesther/espsim.git`
+* `conda env create -n espsim -c rdkit -c conda-forge rdkit numpy scipy matplotlib joblib tqdm pytorch jupyter py3dmol`
+* `conda activate espsim`
+* `pip install git+https://github.com/hesther/chemprop-atom-bond.git`
+* `pip install git+https://github.com/hesther/espsim.git`
 
 To instead install via pip (preferably after creating a local environment), run:
 
-`pip install rdkit numpy scipy matplotlib joblib tqdm pytorch jupyter py3dmol`
-`pip install git+https://github.com/hesther/chemprop-atom-bond.git`
-`pip install git+https://github.com/hesther/espsim.git`
+* `pip install rdkit numpy scipy matplotlib joblib tqdm pytorch jupyter py3dmol`
+* `pip install git+https://github.com/hesther/chemprop-atom-bond.git`
+* `pip install git+https://github.com/hesther/espsim.git`
 
 After installing via conda or pip, you can open a Jupyter notebook via
 
