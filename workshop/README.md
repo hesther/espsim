@@ -11,7 +11,7 @@ To follow along the example, you will either need:
 Please note that the material in the following is still under construction. Please check back later!
 
 ## Colabs notebook
-Link will be posted here.
+Click on workshop_colab.ipynb and then on the "Open in Colab" Badge.
 
 ## Local installation
 You can install ESPsim locally via Conda or Pip. We strongly recommend Conda or other solutions to create local environments instead of changing your system packages!
@@ -35,5 +35,5 @@ After installing via conda or pip, you can open a Jupyter notebook via
 
 `jupyter notebook`
 
-then open `workshop_jupyter.ipynb`
+then open `workshop_jupyter.ipynb` (either download this file or the whole folder first).
 
