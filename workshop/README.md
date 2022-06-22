@@ -8,7 +8,6 @@ To follow along the example, you will either need:
 * A Gmail address so you can use Google Colabs (free, no registration, no installation) OR
 * A local installation of ESPsim and Jupyter
 
-Please note that the material in the following is still under construction. Please check back later!
 
 ## Colabs notebook
 Click on workshop_colab.ipynb and then on the "Open in Colab" Badge.
