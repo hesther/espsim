@@ -93,6 +93,7 @@ def GetEspSim(prbMol,
               methodPsi4 = 'scf',
               gridPsi4 = 1,
               nocheck=False,
+              randomseed = 2342,
 ):
     """
     Calculates the similarity of the electrostatic potential around two previously aligned molecules.
@@ -113,6 +114,7 @@ def GetEspSim(prbMol,
     :param methodPsi4: (optional) Method for Psi4 calculation.
     :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
     :param nocheck: (optional) whether no checks on explicit hydrogens should be run. Speeds up the function, but use wisely.
+    :param randomseed: (optional) seed for the random number generator. Only used with the `mc` integration method.
     :return: Similarity score.
     """
 
@@ -130,7 +132,7 @@ def GetEspSim(prbMol,
     elif integrate=='mc':
         prbVdw = np.array([Chem.GetPeriodicTable().GetRvdw(a.GetAtomicNum()) for a in prbMol.GetAtoms()]).reshape(-1,1)
         refVdw = np.array([Chem.GetPeriodicTable().GetRvdw(a.GetAtomicNum()) for a in refMol.GetAtoms()]).reshape(-1,1)
-        similarity=GetIntegralsViaMC(prbCoor,refCoor,prbCharge,refCharge,prbVdw,refVdw,metric,marginMC,nMC)
+        similarity=GetIntegralsViaMC(prbCoor,refCoor,prbCharge,refCharge,prbVdw,refVdw,metric,marginMC,nMC, randomseed=randomseed)
 
     if renormalize:
         similarity=Renormalize(similarity,metric,customrange)   
@@ -408,7 +410,8 @@ def EmbedAlignConstrainedScore(prbMol,
             AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=prbBestConf,refCid=refBestConf)
         
             espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
-                             partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
+                             partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4,
+                             randomseed=randomseed)
             allShapeSim.append(shapeSim)
             allEspSim.append(espSim)
     else:
@@ -420,7 +423,8 @@ def EmbedAlignConstrainedScore(prbMol,
                 for j in range(prbNumConfs):
                     AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=j,refCid=i)
                     score = GetEspSim(prbMol,refMol,j,i,prbCharge,refCharges[idx],metric,integrate,
-                                      partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
+                                      partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,
+                                      gridPsi4, randomseed=randomseed)
                     if score>espSim:
                         espSim=score
                     shape = GetShapeSim(prbMol,refMol,j,i)
@@ -509,7 +513,8 @@ def EmbedAlignScore(prbMol,
             alignment.Align()
         
             espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
-                             partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
+                             partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4,
+                             randomseed=randomseed)
             allShapeSim.append(shapeSim)
             allEspSim.append(espSim)
     else:
@@ -524,7 +529,8 @@ def EmbedAlignScore(prbMol,
                     alignment = rdMolAlign.GetCrippenO3A(prbMol, refMol, prbCrippen, refCrippen, j, i)
                     alignment.Align()
                     score = GetEspSim(prbMol,refMol,j,i,prbCharge,refCharges[idx],metric,integrate,
-                                      partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
+                                      partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,
+                                      methodPsi4,gridPsi4,randomseed=randomseed)
                     if score>espSim:
                         espSim=score
                     shape = GetShapeSim(prbMol,refMol,j,i)
