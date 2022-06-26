@@ -27,7 +27,7 @@ def GetMolProps(mol,
     :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
     :return: 2D array of coordinates, 1D array of charges.
     """
-    
+
     coor=mol.GetConformer(cid).GetPositions()
     if len(charge) == 0:
         if partialCharges == "gasteiger":
@@ -60,7 +60,7 @@ def GetMolProps(mol,
             raise ValueError("Dimensions of the supplied charges does not match dimensions of coordinates of molecule")
 
     return coor,charge
-    
+
 def GetShapeSim(prbMol,
               refMol,
               prbCid = -1,
@@ -122,7 +122,7 @@ def GetEspSim(prbMol,
     if not nocheck:
         check_hs(prbMol)
         check_hs(refMol)
-    
+
     #Set up probe molecule properties:
     prbCoor,prbCharge=GetMolProps(prbMol,prbCid,prbCharge,partialCharges,basisPsi4,methodPsi4,gridPsi4)
     refCoor,refCharge=GetMolProps(refMol,refCid,refCharge,partialCharges,basisPsi4,methodPsi4,gridPsi4)
@@ -135,7 +135,7 @@ def GetEspSim(prbMol,
         similarity=GetIntegralsViaMC(prbCoor,refCoor,prbCharge,refCharge,prbVdw,refVdw,metric,marginMC,nMC, randomseed=randomseed)
 
     if renormalize:
-        similarity=Renormalize(similarity,metric,customrange)   
+        similarity=Renormalize(similarity,metric,customrange)
 
     return similarity
 
@@ -147,9 +147,9 @@ def GetIntegralsViaGaussians(prbCoor,
 ):
     """
     Calculates the integral of the overlap between the point charges prbCharge and refCharge at coordinates prbCoor and refCoor via fitting to Gaussian functions and analytic integration.
-    :param prbCoor: 2D array of coordinates of the probe molecule. 
-    :param refCoor: 2D array of coordinates of the reference molecule. 
-    :param prbCharge: 1D array of partial charges of the probe molecule. 
+    :param prbCoor: 2D array of coordinates of the probe molecule.
+    :param refCoor: 2D array of coordinates of the reference molecule.
+    :param prbCharge: 1D array of partial charges of the probe molecule.
     :param refCharge: 1D array of partial charges of the reference molecule.
     :param metric: Metric of similarity score.
     :return: Similarity of the overlap integrals.
@@ -165,7 +165,7 @@ def GetIntegralsViaGaussians(prbCoor,
 
     similarity=SimilarityMetric(intPrbPrb,intRefRef,intPrbRef,metric)
     return similarity
-  
+
 def GaussInt(dist,
              charge1,
              charge2,
@@ -185,10 +185,10 @@ def GaussInt(dist,
                 [-0.04539319, -0.2513    , -0.00258662],
                 [-0.00247124, -0.00258662, -0.0013    ]])
 
-    a_flat = a.flatten() 
+    a_flat = a.flatten()
     b_flat = b.flatten()
     dist = (dist**2).flatten()
-    charges = (charge1[:,None]*charge2).flatten() #pairwise products of atomic charges, flattened 
+    charges = (charge1[:,None]*charge2).flatten() #pairwise products of atomic charges, flattened
     return ((a_flat[:,None] * np.exp(dist * b_flat[:,None])).sum(0) * charges).sum()
 
 def GetIntegralsViaMC(prbCoor,
@@ -204,9 +204,9 @@ def GetIntegralsViaMC(prbCoor,
 ):
     """
     Calculates the integral of the overlap between the point charges prbCharge and refCharge at coordinates prbCoor and refCoor via Monte Carlo numeric integration (up to 10 Angstrom away from .
-    :param prbCoor: 2D array of coordinates of the probe molecule. 
-    :param refCoor: 2D array of coordinates of the reference molecule. 
-    :param prbCharge: 1D array of partial charges of the probe molecule. 
+    :param prbCoor: 2D array of coordinates of the probe molecule.
+    :param refCoor: 2D array of coordinates of the reference molecule.
+    :param prbCharge: 1D array of partial charges of the probe molecule.
     :param refCharge: 1D array of partial charges of the reference molecule.
     :param metric: Metric of similarity score.
     :param marginMC: (optional) Margin up to which to integrate (added to coordinates plus/minus their vdW radii).
@@ -230,7 +230,7 @@ def GetIntegralsViaMC(prbCoor,
     intPrbPrb=0
     intPrbRef=0
     intRefRef=0
-    
+
     for i in range(N):
         x=np.random.uniform(minValues[0],maxValues[0])
         y=np.random.uniform(minValues[1],maxValues[1])
@@ -254,7 +254,7 @@ def GetIntegralsViaMC(prbCoor,
     intRefRef*=factor
 
     similarity=SimilarityMetric(intPrbPrb,intRefRef,intPrbRef,metric)
-        
+
     return similarity
 
 
@@ -295,7 +295,7 @@ def ConstrainedEmbedMultipleConfs(mol,
         raise ValueError('Could not embed molecule.')
 
     algMap = [(j, i) for i, j in enumerate(match)]
-    
+
     if not useTethers:
         # clean up the conformation
         for cid in cids:
@@ -353,7 +353,7 @@ def EmbedAlignConstrainedScore(prbMol,
                                gridPsi4 = 1,
                                getBestESP = False,
                                randomseed = 2342):
-    """Calculates a constrained alignment based on a common pattern in the input molecules. Caution: Will fail if the pattern does not match. 
+    """Calculates a constrained alignment based on a common pattern in the input molecules. Caution: Will fail if the pattern does not match.
     Calculates a shape and electrostatic potential similarity of the best alignment.
 
     :param prbMol: RDKit molecule for which shape and electrostatic similarities are calculated.
@@ -377,17 +377,17 @@ def EmbedAlignConstrainedScore(prbMol,
     :param randomseed: (optional) seed for the random number generator
     :return: shape similarity and ESP similarity.
     """
-    
+
     if type(refMols) != list:
         refMols=[refMols]
 
     if refCharges == []:
         refCharges=[[]]*len(refMols)
-        
-    prbMol=ConstrainedEmbedMultipleConfs(prbMol, core, numConfs=prbNumConfs, randomSeed=randomseed)
+
+    prbMol=ConstrainedEmbedMultipleConfs(prbMol, core, numConfs=prbNumConfs, randomseed=randomseed)
     for refMol in refMols:
-        refMol=ConstrainedEmbedMultipleConfs(refMol, core, numConfs=refNumConfs, randomSeed=randomseed)
-        
+        refMol=ConstrainedEmbedMultipleConfs(refMol, core, numConfs=refNumConfs, randomseed=randomseed)
+
     prbMatch = prbMol.GetSubstructMatch(core)
     allShapeSim = []
     allEspSim = []
@@ -408,7 +408,7 @@ def EmbedAlignConstrainedScore(prbMol,
                         refBestConf=i
             #Go back to best alignment
             AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=prbBestConf,refCid=refBestConf)
-        
+
             espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
                              partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4,
                              randomseed=randomseed)
@@ -432,7 +432,7 @@ def EmbedAlignConstrainedScore(prbMol,
                         shapeSim=shape
             allShapeSim.append(shapeSim)
             allEspSim.append(espSim)
-            
+
     return allShapeSim,allEspSim
 
 
@@ -477,13 +477,13 @@ def EmbedAlignScore(prbMol,
     :param randomseed: (optional) seed for the random number generator
     :return: shape similarity and ESP similarity.
     """
-    
+
     if type(refMols) != list:
         refMols=[refMols]
 
     if refCharges == []:
         refCharges=[[]]*len(refMols)
-        
+
     AllChem.EmbedMultipleConfs(prbMol, prbNumConfs, randomSeed=randomseed)
     for refMol in refMols:
         AllChem.EmbedMultipleConfs(refMol, refNumConfs, randomSeed=randomseed)
@@ -511,7 +511,7 @@ def EmbedAlignScore(prbMol,
             #Go back to best alignment
             alignment = rdMolAlign.GetCrippenO3A(prbMol, refMol, prbCrippen, refCrippen, prbBestConf, refBestConf)
             alignment.Align()
-        
+
             espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
                              partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4,
                              randomseed=randomseed)
@@ -537,6 +537,6 @@ def EmbedAlignScore(prbMol,
                     if shape>shapeSim:
                         shapeSim=shape
             allShapeSim.append(shapeSim)
-            allEspSim.append(espSim)           
+            allEspSim.append(espSim)
 
     return allShapeSim,allEspSim
