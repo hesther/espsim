@@ -484,9 +484,9 @@ def EmbedAlignScore(prbMol,
     if refCharges == []:
         refCharges=[[]]*len(refMols)
         
-    AllChem.EmbedMultipleConfs(prbMol, prbNumConfs, AllChem.ETKDGv2(), randomSeed=randomseed)
+    AllChem.EmbedMultipleConfs(prbMol, prbNumConfs, randomSeed=randomseed)
     for refMol in refMols:
-        AllChem.EmbedMultipleConfs(refMol, refNumConfs, AllChem.ETKDGv2(), randomSeed=randomseed)
+        AllChem.EmbedMultipleConfs(refMol, refNumConfs, randomSeed=randomseed)
 
     prbCrippen = rdMolDescriptors._CalcCrippenContribs(prbMol)
 
