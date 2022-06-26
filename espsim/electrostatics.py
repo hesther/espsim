@@ -263,7 +263,7 @@ def ConstrainedEmbedMultipleConfs(mol,
                                   numConfs = 10,
                                   useTethers=True,
                                   coreConfId = -1,
-                                  randomseed = 2342,
+                                  randomSeed = 2342,
                                   getForceField = UFFGetMoleculeForceField,
                                   **kwargs,
 ):
@@ -275,7 +275,7 @@ def ConstrainedEmbedMultipleConfs(mol,
     :param numCons: Number of conformations to create
     :param useTethers: (optional) boolean whether to pull embedded atoms to core coordinates, see rdkit.Chem.AllChem.ConstrainedEmbed
     :param coreConfId: (optional) id of the core conformation to use
-    :param randomseed: (optional) seed for the random number generator
+    :param randomSeed: (optional) seed for the random number generator
     :param getForceField: (optional) force field to use for the optimization of molecules
     :return: RDKit molecule object containing the embedded conformations.
     """
@@ -289,7 +289,7 @@ def ConstrainedEmbedMultipleConfs(mol,
         corePtI = coreConf.GetAtomPosition(i)
         coordMap[idxI] = corePtI
 
-    cids = EmbedMultipleConfs(mol, numConfs=numConfs, coordMap=coordMap, randomSeed=randomseed, **kwargs)
+    cids = EmbedMultipleConfs(mol, numConfs=numConfs, coordMap=coordMap, randomSeed=randomSeed, **kwargs)
     cids = list(cids)
     if len(cids) == 0:
         raise ValueError('Could not embed molecule.')
