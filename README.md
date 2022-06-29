@@ -3,7 +3,7 @@ This repository contains a small code snippet to calculate similarities of shape
 
 ## New
 
-* Want to participate in an in-depth ESPsim workshop? Join us on June 23, 2022! Participation is free, but registration required [here](https://www.eventbrite.com/e/open-source-tools-for-chemistry-tickets-294585512197?). Workshop materials will be posted after the workshop.
+* On June 23, 2022 RSC-CICAG hosted an in-depth ESPsim workshop. The recording is available on [Youtube](https://www.youtube.com/watch?v=Ka08REoGYvI), and the workshop materials are available in the workshop folder. We hope this resource is valuable to you!
 * December 2021: ESPsim has exciting new features: A machine-learned partial charge model, as well as aligning and scoring of molecules without a common core. We furthermore added various benchmarks, see jupyter notebooks in the benchmarks folder.
 
 ## Table of Contents

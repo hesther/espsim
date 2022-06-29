@@ -1,5 +1,5 @@
 # Welcome to the RSC CICAG Workshop materials
-This page contains all workshop materials from the RSC CICAG Workshop June 23, 2022! If you want to participate directly, register for free [here](https://www.eventbrite.com/e/open-source-tools-for-chemistry-tickets-294585512197?). After the workshop, a full video will be available, too. 
+This page contains all workshop materials from the RSC CICAG Workshop June 23, 2022! The recording is available on [Youtube](https://www.youtube.com/watch?v=Ka08REoGYvI). We hope this workshop gives you a solid introduction on the capabilities of ESPsim.
 
 ## Materials
 
