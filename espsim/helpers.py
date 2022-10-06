@@ -6,6 +6,9 @@ import os
 import contextlib
 import pkg_resources
 import warnings
+import logging
+
+logging_level = logging.root.level
 
 def check_hs(mol):
     """Checks whether a molecule misses explicit hydrogens and throws a warning.
@@ -104,6 +107,9 @@ except ImportError:
         Mock implementation raising an ImportError if psi4 and resp cannot be imported.
         """
         raise ImportError("Failed to import Psi4 and RESP. Please install via 'conda install -c psi4 psi4 resp'")
+finally:
+    logging.getLogger().setLevel(logging_level)
+
 
 def num_atoms_bonds(smiles):
     m = Chem.MolFromSmiles(smiles)
