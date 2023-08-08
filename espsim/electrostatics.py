@@ -5,8 +5,9 @@ from rdkit.Chem import rdMolAlign
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem.rdForceFieldHelpers import UFFGetMoleculeForceField
 import numpy as np
+from espaloma_charge import charge as espaloma
 import scipy.spatial
-from .helpers import Renormalize, SimilarityMetric, psi4Charges, mlCharges, check_hs
+from .helpers import Renormalize, SimilarityMetric, psi4Charges, mlCharges
 
 def GetMolProps(mol,
                 cid,
@@ -43,10 +44,16 @@ def GetMolProps(mol,
             else:
                 print("MMFF charges not available for the input molecule, defaulting to Gasteiger charges.")
                 AllChem.ComputeGasteigerCharges(mol)
-                charge=np.array([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])
+                charge=np.array([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])                
         elif partialCharges == 'ml':
             charge=np.array(mlCharges([mol])[0])
-
+        elif partialCharges == 'espaloma':
+            try:
+                charge=espaloma(mol)
+            except:
+                AllChem.ComputeGasteigerCharges(mol)
+                charge=np.array([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])
+                
         elif partialCharges == "resp":
             xyz=Chem.rdmolfiles.MolToXYZBlock(mol,confId=cid)
             charge=psi4Charges(xyz,basisPsi4,methodPsi4,gridPsi4)
@@ -92,8 +99,6 @@ def GetEspSim(prbMol,
               basisPsi4 = '3-21G',
               methodPsi4 = 'scf',
               gridPsi4 = 1,
-              nocheck=False,
-              randomseed = 2342,
 ):
     """
     Calculates the similarity of the electrostatic potential around two previously aligned molecules.
@@ -113,16 +118,9 @@ def GetEspSim(prbMol,
     :param basisPsi4: (optional) Basis set for Psi4 calculation.
     :param methodPsi4: (optional) Method for Psi4 calculation.
     :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
-    :param nocheck: (optional) whether no checks on explicit hydrogens should be run. Speeds up the function, but use wisely.
-    :param randomseed: (optional) seed for the random number generator. Only used with the `mc` integration method.
     :return: Similarity score.
     """
 
-    #Check hydrogens
-    if not nocheck:
-        check_hs(prbMol)
-        check_hs(refMol)
-    
     #Set up probe molecule properties:
     prbCoor,prbCharge=GetMolProps(prbMol,prbCid,prbCharge,partialCharges,basisPsi4,methodPsi4,gridPsi4)
     refCoor,refCharge=GetMolProps(refMol,refCid,refCharge,partialCharges,basisPsi4,methodPsi4,gridPsi4)
@@ -132,7 +130,7 @@ def GetEspSim(prbMol,
     elif integrate=='mc':
         prbVdw = np.array([Chem.GetPeriodicTable().GetRvdw(a.GetAtomicNum()) for a in prbMol.GetAtoms()]).reshape(-1,1)
         refVdw = np.array([Chem.GetPeriodicTable().GetRvdw(a.GetAtomicNum()) for a in refMol.GetAtoms()]).reshape(-1,1)
-        similarity=GetIntegralsViaMC(prbCoor,refCoor,prbCharge,refCharge,prbVdw,refVdw,metric,marginMC,nMC, randomseed=randomseed)
+        similarity=GetIntegralsViaMC(prbCoor,refCoor,prbCharge,refCharge,prbVdw,refVdw,metric,marginMC,nMC)
 
     if renormalize:
         similarity=Renormalize(similarity,metric,customrange)   
@@ -200,7 +198,6 @@ def GetIntegralsViaMC(prbCoor,
                       metric,
                       marginMC = 10,
                       nMC = 1,
-                      randomseed = 2342,
 ):
     """
     Calculates the integral of the overlap between the point charges prbCharge and refCharge at coordinates prbCoor and refCoor via Monte Carlo numeric integration (up to 10 Angstrom away from .
@@ -211,10 +208,8 @@ def GetIntegralsViaMC(prbCoor,
     :param metric: Metric of similarity score.
     :param marginMC: (optional) Margin up to which to integrate (added to coordinates plus/minus their vdW radii).
     :param nMC: (optional) Number of grid points per 1 Angstrom**3 volume of integration vox.
-    :param randomseed: (optional) seed for the random number generator
     :return: Similarity of the overlap integrals.
     """
-    np.random.seed(randomseed)
     margin=marginMC
     allCoor=np.concatenate((prbCoor,refCoor))
     allVdw=np.concatenate((prbVdw,refVdw))
@@ -263,7 +258,7 @@ def ConstrainedEmbedMultipleConfs(mol,
                                   numConfs = 10,
                                   useTethers=True,
                                   coreConfId = -1,
-                                  randomSeed = 2342,
+                                  randomseed = 2342,
                                   getForceField = UFFGetMoleculeForceField,
                                   **kwargs,
 ):
@@ -275,7 +270,7 @@ def ConstrainedEmbedMultipleConfs(mol,
     :param numCons: Number of conformations to create
     :param useTethers: (optional) boolean whether to pull embedded atoms to core coordinates, see rdkit.Chem.AllChem.ConstrainedEmbed
     :param coreConfId: (optional) id of the core conformation to use
-    :param randomSeed: (optional) seed for the random number generator
+    :param randomseed: (optional) seef for the random number generator
     :param getForceField: (optional) force field to use for the optimization of molecules
     :return: RDKit molecule object containing the embedded conformations.
     """
@@ -289,7 +284,7 @@ def ConstrainedEmbedMultipleConfs(mol,
         corePtI = coreConf.GetAtomPosition(i)
         coordMap[idxI] = corePtI
 
-    cids = EmbedMultipleConfs(mol, numConfs=numConfs, coordMap=coordMap, randomSeed=randomSeed, **kwargs)
+    cids = EmbedMultipleConfs(mol, numConfs=numConfs, coordMap=coordMap, randomSeed=randomseed, **kwargs)
     cids = list(cids)
     if len(cids) == 0:
         raise ValueError('Could not embed molecule.')
@@ -351,8 +346,7 @@ def EmbedAlignConstrainedScore(prbMol,
                                basisPsi4 = '3-21G',
                                methodPsi4 = 'scf',
                                gridPsi4 = 1,
-                               getBestESP = False,
-                               randomseed = 2342):
+                               getBestESP = False):
     """Calculates a constrained alignment based on a common pattern in the input molecules. Caution: Will fail if the pattern does not match. 
     Calculates a shape and electrostatic potential similarity of the best alignment.
 
@@ -373,8 +367,7 @@ def EmbedAlignConstrainedScore(prbMol,
     :param basisPsi4: (optional) Basis set for Psi4 calculation.
     :param methodPsi4: (optional) Method for Psi4 calculation.
     :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
-    :param getBestESP: (optional) Whether to select best alignment via ESP instead of shape.
-    :param randomseed: (optional) seed for the random number generator
+    :param getBestESP: Whether to select best alignment via ESP instead of shape.
     :return: shape similarity and ESP similarity.
     """
     
@@ -384,9 +377,9 @@ def EmbedAlignConstrainedScore(prbMol,
     if refCharges == []:
         refCharges=[[]]*len(refMols)
         
-    prbMol=ConstrainedEmbedMultipleConfs(prbMol, core, numConfs=prbNumConfs, randomSeed=randomseed)
+    prbMol=ConstrainedEmbedMultipleConfs(prbMol, core, numConfs=prbNumConfs)
     for refMol in refMols:
-        refMol=ConstrainedEmbedMultipleConfs(refMol, core, numConfs=refNumConfs, randomSeed=randomseed)
+        refMol=ConstrainedEmbedMultipleConfs(refMol, core, numConfs=refNumConfs)
         
     prbMatch = prbMol.GetSubstructMatch(core)
     allShapeSim = []
@@ -410,8 +403,7 @@ def EmbedAlignConstrainedScore(prbMol,
             AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=prbBestConf,refCid=refBestConf)
         
             espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
-                             partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4,
-                             randomseed=randomseed)
+                             partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
             allShapeSim.append(shapeSim)
             allEspSim.append(espSim)
     else:
@@ -423,8 +415,7 @@ def EmbedAlignConstrainedScore(prbMol,
                 for j in range(prbNumConfs):
                     AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=j,refCid=i)
                     score = GetEspSim(prbMol,refMol,j,i,prbCharge,refCharges[idx],metric,integrate,
-                                      partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,
-                                      gridPsi4, randomseed=randomseed)
+                                      partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
                     if score>espSim:
                         espSim=score
                     shape = GetShapeSim(prbMol,refMol,j,i)
@@ -452,8 +443,7 @@ def EmbedAlignScore(prbMol,
                     basisPsi4 = '3-21G',
                     methodPsi4 = 'scf',
                     gridPsi4 = 1,
-                    getBestESP = False,
-                    randomseed = 2342):
+                    getBestESP = False):
     """Calculates a general alignment in the input molecules.
     Calculates a shape and electrostatic potential similarity of the best alignment.
 
@@ -474,7 +464,6 @@ def EmbedAlignScore(prbMol,
     :param methodPsi4: (optional) Method for Psi4 calculation.
     :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
     :param getBestESP: Whether to select best alignment via ESP instead of shape.
-    :param randomseed: (optional) seed for the random number generator
     :return: shape similarity and ESP similarity.
     """
     
@@ -484,9 +473,9 @@ def EmbedAlignScore(prbMol,
     if refCharges == []:
         refCharges=[[]]*len(refMols)
         
-    AllChem.EmbedMultipleConfs(prbMol, prbNumConfs, randomSeed=randomseed)
+    AllChem.EmbedMultipleConfs(prbMol, prbNumConfs, AllChem.ETKDGv2())
     for refMol in refMols:
-        AllChem.EmbedMultipleConfs(refMol, refNumConfs, randomSeed=randomseed)
+        AllChem.EmbedMultipleConfs(refMol, refNumConfs, AllChem.ETKDGv2())
 
     prbCrippen = rdMolDescriptors._CalcCrippenContribs(prbMol)
 
@@ -513,8 +502,7 @@ def EmbedAlignScore(prbMol,
             alignment.Align()
         
             espSim=GetEspSim(prbMol,refMol,prbBestConf,refBestConf,prbCharge,refCharges[idx],metric,integrate,
-                             partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4,
-                             randomseed=randomseed)
+                             partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
             allShapeSim.append(shapeSim)
             allEspSim.append(espSim)
     else:
@@ -529,8 +517,7 @@ def EmbedAlignScore(prbMol,
                     alignment = rdMolAlign.GetCrippenO3A(prbMol, refMol, prbCrippen, refCrippen, j, i)
                     alignment.Align()
                     score = GetEspSim(prbMol,refMol,j,i,prbCharge,refCharges[idx],metric,integrate,
-                                      partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,
-                                      methodPsi4,gridPsi4,randomseed=randomseed)
+                                      partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,gridPsi4)
                     if score>espSim:
                         espSim=score
                     shape = GetShapeSim(prbMol,refMol,j,i)
