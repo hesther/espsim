@@ -91,4 +91,4 @@ Visit the `benchmarks` folder to show scripts to benchmark ESP-Sim on DUD-E and 
 
 
 ## Contact
-Feel free to post questions, feedback, errors or concerns on github, or email to eheid@mit.edu.
+Feel free to post questions, feedback, errors or concerns on github, or email to esther.heid@tuwien.ac.at
