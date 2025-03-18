@@ -10,7 +10,7 @@ dependencies:
   - python>=3.9
   - rdkit
   - pytorch
-  - numpy
+  - numpy <2
   - scikit-learn
   - scipy
   - matplotlib
