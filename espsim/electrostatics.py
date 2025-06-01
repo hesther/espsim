@@ -27,8 +27,8 @@ def GetMolProps(mol,
     :param gridPsi4: (optional) Integer grid point density for ESP evaluation for Psi4 calculation.
     :return: 2D array of coordinates, 1D array of charges.
     """
-    
-    coor=mol.GetConformer(cid).GetPositions()
+    confs_id = [x.GetId() for x in mol.GetConformers()]
+    coor=mol.GetConformer(confs_id[cid]).GetPositions()
     if len(charge) == 0:
         if partialCharges == "gasteiger":
             try:
@@ -400,12 +400,15 @@ def EmbedAlignConstrainedScore(prbMol,
             refMatch = refMol.GetSubstructMatch(core)
             for i in range(refNumConfs):
                 for j in range(prbNumConfs):
-                    AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=j,refCid=i)
-                    shape = GetShapeSim(prbMol,refMol,j,i)
-                    if shape>shapeSim:
-                        shapeSim=shape
-                        prbBestConf=j
-                        refBestConf=i
+                    try:
+                        AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=j,refCid=i)
+                        shape = GetShapeSim(prbMol,refMol,j,i)
+                        if shape>shapeSim:
+                            shapeSim=shape
+                            prbBestConf=j
+                            refBestConf=i
+                    except ValueError as e:
+                        print(f"Failed for Conformers {i} and {j}.")
             #Go back to best alignment
             AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=prbBestConf,refCid=refBestConf)
         
@@ -421,15 +424,18 @@ def EmbedAlignConstrainedScore(prbMol,
             refMatch = refMol.GetSubstructMatch(core)
             for i in range(refNumConfs):
                 for j in range(prbNumConfs):
-                    AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=j,refCid=i)
-                    score = GetEspSim(prbMol,refMol,j,i,prbCharge,refCharges[idx],metric,integrate,
+                    try:
+                        AllChem.AlignMol(prbMol,refMol,atomMap=list(zip(prbMatch,refMatch)),prbCid=j,refCid=i)
+                        score = GetEspSim(prbMol,refMol,j,i,prbCharge,refCharges[idx],metric,integrate,
                                       partialCharges,renormalize,customrange,marginMC,nMC,basisPsi4,methodPsi4,
                                       gridPsi4, randomseed=randomseed)
-                    if score>espSim:
-                        espSim=score
-                    shape = GetShapeSim(prbMol,refMol,j,i)
-                    if shape>shapeSim:
-                        shapeSim=shape
+                        if score>espSim:
+                            espSim=score
+                        shape = GetShapeSim(prbMol,refMol,j,i)
+                        if shape>shapeSim:
+                            shapeSim=shape
+                    except ValueError as e:
+                        print(f"Failed for Conformers {i} and {j}.")
             allShapeSim.append(shapeSim)
             allEspSim.append(espSim)
             
