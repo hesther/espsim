@@ -23,7 +23,7 @@ It is easiest to install all required packages inside a conda environment. Run
 
 `conda env create -f environment.yml`
 
-to install all necessary packages. Next, activate the environment:
+to install all necessary packages. Some users have reported installation problems, in that case it can be easier to recreate an existing environment: `espsim_fixed_env.yml` instead of the generic `environment.yml`. Next, activate the environment:
 
 `conda activate espsim`
 
