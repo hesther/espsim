@@ -1,0 +1,7 @@
+include README.md
+include LICENSE.txt
+recursive-include espsim *.pt
+recursive-include espsim/testfiles *.mol *.mol2 *.sdf
+recursive-include benchmarks *.ipynb
+recursive-include scripts *.py *.ipynb
+recursive-include workshop *.ipynb *.md
