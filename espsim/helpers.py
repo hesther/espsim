@@ -4,7 +4,7 @@ from rdkit.Chem import AllChem
 from argparse import Namespace
 import os
 import contextlib
-import pkg_resources
+from importlib.resources import files, as_file
 import warnings
 import logging
 
@@ -144,29 +144,30 @@ try:
         #MUST use mols with hydrogens!
         smiles = [Chem.MolToSmiles(mol) for mol in mols]
 
-        path = pkg_resources.resource_filename(__name__, 'QM_137k.pt')
-        args = Namespace(batch_size=50, checkpoint_dir=None, checkpoint_path=path, checkpoint_paths=[path], cuda=False, features_generator=None, features_path=None, gpu=None, max_data_size=None, no_features_scaling=False, preds_path=None, test_path=None, use_compound_names=False)
+        model_file = files('espsim').joinpath('QM_137k.pt')
+        with as_file(model_file) as path:
+            args = Namespace(batch_size=50, checkpoint_dir=None, checkpoint_path=str(path), checkpoint_paths=[str(path)], cuda=False, features_generator=None, features_path=None, gpu=None, max_data_size=None, no_features_scaling=False, preds_path=None, test_path=None, use_compound_names=False)
 
-        with open(os.devnull, 'w') as devnull:
-            with contextlib.redirect_stdout(devnull):
-                test_preds, test_smiles = make_predictions(args, smiles=smiles)
-        n_atoms, n_bonds = zip(*[num_atoms_bonds(x) for x in smiles])
-        partial_charge = test_preds[0]
-        partial_charge = np.split(partial_charge.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
+            with open(os.devnull, 'w') as devnull:
+                with contextlib.redirect_stdout(devnull):
+                    test_preds, test_smiles = make_predictions(args, smiles=smiles)
+            n_atoms, n_bonds = zip(*[num_atoms_bonds(x) for x in smiles])
+            partial_charge = test_preds[0]
+            partial_charge = np.split(partial_charge.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
 
-        charges=[]
-        for i,mol in enumerate(mols):
-            try:
-                reorder_list = get_reorder_list(mol)
-                charges.append([partial_charge[i][reorder_list[x]] for x in range(mol.GetNumAtoms())])
-            except ValueError:
-                #Could not get prediction, default to Gasteiger
-                print("Warning: could not obtain prediction, defaulting to Gasteiger charges for one molecule")
-                AllChem.ComputeGasteigerCharges(mol)
-                charges.append([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])
-            
+            charges=[]
+            for i,mol in enumerate(mols):
+                try:
+                    reorder_list = get_reorder_list(mol)
+                    charges.append([partial_charge[i][reorder_list[x]] for x in range(mol.GetNumAtoms())])
+                except ValueError:
+                    #Could not get prediction, default to Gasteiger
+                    print("Warning: could not obtain prediction, defaulting to Gasteiger charges for one molecule")
+                    AllChem.ComputeGasteigerCharges(mol)
+                    charges.append([a.GetDoubleProp('_GasteigerCharge') for a in mol.GetAtoms()])
+                
 
-        return charges
+            return charges
 
 except ImportError:
     def mlCharges(mols):

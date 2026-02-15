@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools-scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "espsim"
+version = "0.0.2"
+description = "Scoring of shape and ESP similarity with RDKit"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Esther Heid", email = "eheid@mit.edu"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+keywords = [
+    "chemistry",
+    "electrostatic potential",
+    "shape",
+    "similarity",
+    "RDKit"
+]
+requires-python = ">=3.9"
+dependencies = [
+    "rdkit>=2023.03",
+    "torch>=2.0",
+    "numpy<2",
+    "scikit-learn>=1.0",
+    "scipy>=1.8",
+    "matplotlib>=3.5",
+    "joblib>=1.2",
+    "tqdm>=4.6",
+    "py3dmol>=0.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "jupyter>=1.0",
+    "pytest>=7.0",
+    "black>=23.0",
+    "flake8>=4.0",
+    "mypy>=1.0",
+]
+chemprop = [
+    "chemprop-atom-bond @ git+https://github.com/hesther/chemprop-atom-bond.git",
+]
+psi4 = [
+    "psi4>=1.5",
+    "resp>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/hesther/espsim"
+Repository = "https://github.com/hesther/espsim"
+Issues = "https://github.com/hesther/espsim/issues"
+
+[tool.setuptools]
+packages = ["espsim", "espsim.testfiles"]
+include-package-data = true
